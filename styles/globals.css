@@ -1,0 +1,69 @@
+@import "tailwindcss";
+@config "../tailwind.config.ts";
+
+:root {
+  --color-navy: #2b333e;
+  --color-salmon: #eca392;
+  --color-green: #788e8b;
+  --color-blue: #455763;
+  --color-cream: #f7f3ee;
+  --color-warm-white: #fdf9f5;
+}
+
+@theme inline {
+  --color-navy: var(--color-navy);
+  --color-salmon: var(--color-salmon);
+  --color-green: var(--color-green);
+  --color-blue: var(--color-blue);
+  --color-cream: var(--color-cream);
+  --color-warm-white: var(--color-warm-white);
+  --font-display: var(--font-playfair);
+  --font-eyebrow: var(--font-bebas);
+  --font-body: var(--font-dm-sans);
+}
+
+body {
+  background: var(--color-warm-white);
+  color: var(--color-blue);
+}
+
+/* Custom utility classes, prefixed bb- where Tailwind alone isn't enough. */
+
+.bb-eyebrow {
+  font-family: var(--font-eyebrow);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.bb-container {
+  max-width: 72rem;
+  margin-inline: auto;
+  padding-inline: 1.5rem;
+}
+
+.bb-grade {
+  font-family: var(--font-display);
+  font-weight: 700;
+  line-height: 1;
+}
+
+.bb-badge-pass {
+  background-color: color-mix(in srgb, var(--color-green) 18%, transparent);
+  color: var(--color-navy);
+}
+
+.bb-badge-partial {
+  background-color: color-mix(in srgb, var(--color-salmon) 30%, transparent);
+  color: var(--color-navy);
+}
+
+.bb-badge-fail {
+  background-color: color-mix(in srgb, var(--color-navy) 12%, transparent);
+  color: var(--color-navy);
+}
+
+.bb-card {
+  background: #ffffff;
+  border: 1px solid color-mix(in srgb, var(--color-blue) 12%, transparent);
+  border-radius: 0.75rem;
+}
