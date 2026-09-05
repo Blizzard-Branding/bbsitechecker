@@ -1,5 +1,10 @@
 import { NextResponse } from "next/server";
-import { ensureSchema, inspectConnectionEnv, pingDatabase } from "@/lib/db";
+import {
+  activeConnectionSource,
+  ensureSchema,
+  inspectConnectionEnv,
+  pingDatabase,
+} from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,15 +26,18 @@ function redact(message: string): string {
  * env var names only, never their values.
  */
 export async function GET() {
-  const { source, unusable, present, databaseLikeVars } = inspectConnectionEnv();
+  const { unusable, present, databaseLikeVars, candidates } = inspectConnectionEnv();
 
-  const env = {
-    usableConnectionStringFrom: source,
+  const env = () => ({
+    // The candidate that actually connected, once one has.
+    connectedVia: activeConnectionSource(),
+    // Every usable connection string, tried in this order.
+    candidatesInOrder: candidates,
     envVarsPresent: present,
     envVarsPresentButWrongProtocol: unusable,
     // Names and value protocols only, never values.
     databaseLikeEnvVars: databaseLikeVars,
-  };
+  });
 
   try {
     await pingDatabase();
@@ -39,7 +47,7 @@ export async function GET() {
       {
         ok: false,
         stage: "connect",
-        env,
+        env: env(),
         error: redact(err instanceof Error ? err.message : String(err)),
         code: (err as { code?: string })?.code ?? null,
       },
@@ -55,7 +63,7 @@ export async function GET() {
       {
         ok: false,
         stage: "schema",
-        env,
+        env: env(),
         error: redact(err instanceof Error ? err.message : String(err)),
         code: (err as { code?: string })?.code ?? null,
       },
@@ -63,5 +71,5 @@ export async function GET() {
     );
   }
 
-  return NextResponse.json({ ok: true, env });
+  return NextResponse.json({ ok: true, env: env() });
 }
