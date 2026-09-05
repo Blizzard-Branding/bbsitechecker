@@ -58,8 +58,11 @@ export default function LeadForm({ auditId }: { auditId: string }) {
         disabled={loading}
         className="bb-eyebrow bg-navy text-warm-white px-6 py-3 rounded-lg hover:bg-blue transition-colors disabled:opacity-60"
       >
-        {loading ? "Unlocking..." : "See the full report"}
+        {loading ? "Signing up..." : "Subscribe and see the report"}
       </button>
+      <p className="text-xs text-blue/80">
+        You will be added to the Blizzard Branding newsletter. Unsubscribe any time.
+      </p>
       {error && <p className="text-sm text-navy">{error}</p>}
     </form>
   );

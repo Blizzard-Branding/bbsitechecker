@@ -28,6 +28,12 @@ export default async function ReportPage({
         <p className="bb-eyebrow text-sm text-salmon">Full report for</p>
         <p className="font-display text-2xl text-navy break-all">{result.url}</p>
         <p className="bb-grade text-6xl text-navy mt-2">{result.combinedGrade}</p>
+        <a
+          href={`/api/report/${result.id}/pdf`}
+          className="bb-eyebrow text-sm text-green underline underline-offset-4 mt-2"
+        >
+          Download as PDF
+        </a>
       </section>
 
       {categories.map((category) => (

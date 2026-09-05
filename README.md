@@ -33,6 +33,8 @@ Copy `.env.example` to `.env` and fill in:
 ```
 POSTGRES_URL=               # auto-injected once you connect a Postgres database
 POSTGRES_URL_NON_POOLING=   # auto-injected alongside POSTGRES_URL
+MAILERLITE_API_KEY=         # newsletter signup on the report gate
+MAILERLITE_GROUP_ID=        # optional, adds subscribers to one specific group
 RESEND_API_KEY=
 FROM_EMAIL=hello@blizzardbranding.com
 LEO_NOTIFY_EMAIL=leo@blizzardbranding.com
@@ -66,9 +68,12 @@ which env vars are present (names only, never values) and whether the
 database is reachable.
 
 Without a connection string, `/api/audit` and the results/report pages won't
-have anywhere to persist or read audits. Without `RESEND_API_KEY`, email
-sending is skipped silently (the report still unlocks online). Without the
-Upstash variables, the IP rate limiter is a no-op.
+have anywhere to persist or read audits. Without `MAILERLITE_API_KEY`, the
+signup form still unlocks the report and still records the lead, it just
+doesn't add anyone to the newsletter. Without `RESEND_API_KEY`, email sending
+is skipped silently. Without the Upstash variables, the IP rate limiter is a
+no-op. None of these failures block the report: someone who submits the form
+always gets through.
 
 ## Architecture
 

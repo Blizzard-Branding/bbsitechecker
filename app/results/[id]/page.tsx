@@ -47,7 +47,8 @@ export default async function ResultsPage({
         ) : (
           <>
             <p className="text-blue max-w-md">
-              Enter your business email and we will unlock the full report and send you a PDF copy.
+              Sign up for our newsletter to unlock the full report. We write about
+              search, accessibility, and the web, roughly once a month.
             </p>
             <LeadForm auditId={result.id} />
           </>
