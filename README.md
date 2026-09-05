@@ -31,7 +31,8 @@ without that path installed, run `npx playwright install chromium` and point
 Copy `.env.example` to `.env` and fill in:
 
 ```
-DATABASE_URL=              # Vercel Postgres, auto-injected on Vercel
+POSTGRES_URL=               # auto-injected once you connect a Postgres database
+POSTGRES_URL_NON_POOLING=   # auto-injected alongside POSTGRES_URL
 RESEND_API_KEY=
 FROM_EMAIL=hello@blizzardbranding.com
 LEO_NOTIFY_EMAIL=leo@blizzardbranding.com
@@ -40,10 +41,14 @@ UPSTASH_REDIS_REST_TOKEN=
 NEXT_PUBLIC_SITE_URL=https://tools.blizzardbranding.com
 ```
 
-Without `DATABASE_URL`, `/api/audit` and the results/report pages won't have
-anywhere to persist or read audits. Without `RESEND_API_KEY`, email sending is
-skipped silently (the report still unlocks online). Without the Upstash
-variables, the IP rate limiter is a no-op.
+`POSTGRES_URL` is the env var `@vercel/postgres`'s `sql` client actually reads
+(not `DATABASE_URL`, despite that being a common convention elsewhere). On
+Vercel it's set automatically the moment you connect a Postgres database to
+the project; locally you'd copy the same value from the dashboard. Without
+it, `/api/audit` and the results/report pages won't have anywhere to persist
+or read audits. Without `RESEND_API_KEY`, email sending is skipped silently
+(the report still unlocks online). Without the Upstash variables, the IP
+rate limiter is a no-op.
 
 ## Architecture
 
@@ -61,7 +66,7 @@ lib/
   fetch-page.ts               Playwright/axe-core wrapper
   scorer.ts                   weight math + letter grades
   pdf-builder.tsx             @react-pdf/renderer report
-  db.ts                       Vercel Postgres client + schema
+  db.ts                       @vercel/postgres client + schema
   rate-limit.ts               Upstash IP rate limiting
   resend.ts                   lead + report emails
 components/
