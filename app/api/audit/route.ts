@@ -29,14 +29,26 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  let result;
   try {
-    const result = await runAudit(url);
-    await saveAudit(result);
-    return NextResponse.json({ id: result.id });
-  } catch {
+    result = await runAudit(url);
+  } catch (err) {
+    console.error(`[audit] failed to fetch/check ${url}:`, err);
     return NextResponse.json(
       { error: "We couldn't fully audit this site. Check the URL and try again." },
       { status: 502 },
     );
   }
+
+  try {
+    await saveAudit(result);
+  } catch (err) {
+    console.error(`[audit] failed to save audit for ${url}:`, err);
+    return NextResponse.json(
+      { error: "The audit ran but we couldn't save it. Try again in a moment." },
+      { status: 500 },
+    );
+  }
+
+  return NextResponse.json({ id: result.id });
 }

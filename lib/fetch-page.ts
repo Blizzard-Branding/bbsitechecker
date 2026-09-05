@@ -46,8 +46,11 @@ export async function fetchPage(url: string): Promise<FetchedPage> {
 
     const response = await page.goto(url, {
       timeout: FETCH_TIMEOUT_MS,
-      waitUntil: "networkidle",
+      waitUntil: "load",
     });
+    // Give lazy-loaded content a chance to settle, but don't fail the whole
+    // audit over a site whose analytics/chat scripts never go fully idle.
+    await page.waitForLoadState("networkidle", { timeout: 8_000 }).catch(() => {});
 
     const html = await page.content();
     const finalUrl = page.url();
