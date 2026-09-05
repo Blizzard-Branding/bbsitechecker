@@ -41,14 +41,23 @@ UPSTASH_REDIS_REST_TOKEN=
 NEXT_PUBLIC_SITE_URL=https://tools.blizzardbranding.com
 ```
 
-`POSTGRES_URL` is the env var `@vercel/postgres`'s `sql` client actually reads
-(not `DATABASE_URL`, despite that being a common convention elsewhere). On
-Vercel it's set automatically the moment you connect a Postgres database to
-the project; locally you'd copy the same value from the dashboard. Without
-it, `/api/audit` and the results/report pages won't have anywhere to persist
-or read audits. Without `RESEND_API_KEY`, email sending is skipped silently
-(the report still unlocks online). Without the Upstash variables, the IP
-rate limiter is a no-op.
+The database layer (`lib/db.ts`) accepts a standard Postgres connection
+string from whichever of these env vars is set first: `POSTGRES_URL`,
+`DATABASE_URL`, `POSTGRES_PRISMA_URL`, `POSTGRES_URL_NON_POOLING`,
+`DATABASE_URL_UNPOOLED`, `DIRECT_URL`, `DIRECT_DATABASE_URL`. Connecting a
+Postgres database on Vercel (Neon, Supabase, or the built-in Postgres) sets
+one of these automatically. Note that a **Prisma Postgres** database will
+not work: it hands out a `prisma+postgres://` Accelerate URL, which is an
+HTTP proxy protocol rather than the Postgres wire protocol this app speaks.
+
+Hit `/api/health/db` on a deployment to check the connection. It reports
+which env vars are present (names only, never values) and whether the
+database is reachable.
+
+Without a connection string, `/api/audit` and the results/report pages won't
+have anywhere to persist or read audits. Without `RESEND_API_KEY`, email
+sending is skipped silently (the report still unlocks online). Without the
+Upstash variables, the IP rate limiter is a no-op.
 
 ## Architecture
 
@@ -66,7 +75,7 @@ lib/
   fetch-page.ts               Playwright/axe-core wrapper
   scorer.ts                   weight math + letter grades
   pdf-builder.tsx             @react-pdf/renderer report
-  db.ts                       @vercel/postgres client + schema
+  db.ts                       node-postgres client + schema
   rate-limit.ts               Upstash IP rate limiting
   resend.ts                   lead + report emails
 components/
