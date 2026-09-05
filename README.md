@@ -41,14 +41,25 @@ UPSTASH_REDIS_REST_TOKEN=
 NEXT_PUBLIC_SITE_URL=https://tools.blizzardbranding.com
 ```
 
-The database layer (`lib/db.ts`) accepts a standard Postgres connection
-string from whichever of these env vars is set first: `POSTGRES_URL`,
-`DATABASE_URL`, `POSTGRES_PRISMA_URL`, `POSTGRES_URL_NON_POOLING`,
-`DATABASE_URL_UNPOOLED`, `DIRECT_URL`, `DIRECT_DATABASE_URL`. Connecting a
-Postgres database on Vercel (Neon, Supabase, or the built-in Postgres) sets
-one of these automatically. Note that a **Prisma Postgres** database will
-not work: it hands out a `prisma+postgres://` Accelerate URL, which is an
-HTTP proxy protocol rather than the Postgres wire protocol this app speaks.
+The database layer (`lib/db.ts`) takes a standard Postgres connection string
+and looks for one in this order:
+
+1. `SITE_CHECKER_DATABASE_URL`, if set.
+2. The unprefixed conventional names: `POSTGRES_URL`, `DATABASE_URL`,
+   `POSTGRES_PRISMA_URL`, `POSTGRES_URL_NON_POOLING`, `DATABASE_URL_UNPOOLED`,
+   `DIRECT_URL`, `DIRECT_DATABASE_URL`.
+3. The same names carrying a resource prefix, which is how Vercel storage
+   integrations inject them (`tools_POSTGRES_URL`, `bbsitechecker_DATABASE_URL`).
+4. Any env var at all whose value is a `postgres://` URL.
+
+Steps 3 and 4 sort names so the choice is stable across deployments. If more
+than one database is attached, pin the one you want with
+`SITE_CHECKER_DATABASE_URL`, otherwise which one wins is deterministic but
+arbitrary, and audits written to one won't be readable from the other.
+
+A **Prisma Postgres** database that only exposes a `prisma+postgres://`
+Accelerate URL will not work: that's an HTTP proxy protocol rather than the
+Postgres wire protocol this app speaks.
 
 Hit `/api/health/db` on a deployment to check the connection. It reports
 which env vars are present (names only, never values) and whether the

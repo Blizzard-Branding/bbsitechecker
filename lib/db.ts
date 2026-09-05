@@ -27,6 +27,13 @@ const CONNECTION_ENV_VARS = [
   "DIRECT_DATABASE_URL",
 ] as const;
 
+/**
+ * Set this to pin the app to one specific database. It wins over everything
+ * else, which matters when more than one storage integration is attached and
+ * each injects its own connection string.
+ */
+const EXPLICIT_ENV_VAR = "SITE_CHECKER_DATABASE_URL";
+
 /** Protocols a raw Postgres wire-protocol client can actually talk to. */
 function isWireProtocolUrl(value: string): boolean {
   return value.startsWith("postgres://") || value.startsWith("postgresql://");
@@ -59,10 +66,22 @@ export interface ConnectionInfo {
   databaseLikeVars: { name: string; protocol: string }[];
 }
 
+function usableValue(name: string): string | null {
+  const value = process.env[name]?.trim();
+  if (!value || !isWireProtocolUrl(value)) return null;
+  return value;
+}
+
 export function inspectConnectionEnv(): ConnectionInfo {
   const present: string[] = [];
   const unusable: { name: string; protocol: string }[] = [];
   let source: string | null = null;
+
+  // Highest priority: an explicitly pinned connection string.
+  if (usableValue(EXPLICIT_ENV_VAR)) {
+    source = EXPLICIT_ENV_VAR;
+    present.push(EXPLICIT_ENV_VAR);
+  }
 
   for (const name of CONNECTION_ENV_VARS) {
     const value = process.env[name]?.trim();
@@ -75,16 +94,34 @@ export function inspectConnectionEnv(): ConnectionInfo {
     }
   }
 
+  // Vercel storage integrations prefix their variables with the resource name
+  // (e.g. tools_POSTGRES_URL), so match on the known suffixes next, keeping the
+  // same preference order. Sorted by name so the choice stays stable across
+  // deployments when several integrations are attached.
+  if (!source) {
+    const envNames = Object.keys(process.env).sort();
+    for (const known of CONNECTION_ENV_VARS) {
+      const match = envNames.find(
+        (name) => name.endsWith(`_${known}`) && usableValue(name) !== null,
+      );
+      if (match) {
+        source = match;
+        if (!present.includes(match)) present.push(match);
+        break;
+      }
+    }
+  }
+
   // Last resort: any env var at all holding a postgres:// URL. Providers keep
   // inventing new names, and a working connection string is worth finding
-  // wherever it landed.
+  // wherever it landed. Sorted for a stable choice.
   if (!source) {
-    for (const [name, value] of Object.entries(process.env)) {
-      const trimmed = value?.trim();
-      if (!trimmed || !isWireProtocolUrl(trimmed)) continue;
-      source = name;
-      if (!present.includes(name)) present.push(name);
-      break;
+    const match = Object.keys(process.env)
+      .sort()
+      .find((name) => usableValue(name) !== null);
+    if (match) {
+      source = match;
+      if (!present.includes(match)) present.push(match);
     }
   }
 
