@@ -32,13 +32,31 @@ function isWireProtocolUrl(value: string): boolean {
   return value.startsWith("postgres://") || value.startsWith("postgresql://");
 }
 
+/**
+ * Env var names that look like they might hold database configuration.
+ * Used only for diagnostics, so an unexpected provider naming scheme shows up
+ * by name instead of leaving us guessing.
+ */
+const DATABASE_LIKE_NAME = /POSTGRES|POSTGRESQL|DATABASE|PRISMA|NEON|SUPABASE|\bPG_|_PG\b|DB_URL/i;
+
+/** The scheme of a URL-ish value, for diagnostics. Never includes the value. */
+function protocolOf(value: string): string {
+  const match = value.match(/^([a-z0-9+.-]+):\/\//i);
+  return match ? match[1] : "not-a-url";
+}
+
 export interface ConnectionInfo {
   /** Env var the connection string came from, if one was usable. */
   source: string | null;
   /** Env vars that were set but hold a non-Postgres-wire-protocol value. */
   unusable: { name: string; protocol: string }[];
-  /** Env var names that are present and non-empty. */
+  /** Env var names from the known list that are present and non-empty. */
   present: string[];
+  /**
+   * Every env var whose *name* looks database-related, with the protocol of
+   * its value. Names and protocols only, never values.
+   */
+  databaseLikeVars: { name: string; protocol: string }[];
 }
 
 export function inspectConnectionEnv(): ConnectionInfo {
@@ -53,16 +71,33 @@ export function inspectConnectionEnv(): ConnectionInfo {
     if (isWireProtocolUrl(value)) {
       if (!source) source = name;
     } else {
-      const protocol = value.split(":")[0] ?? "unknown";
-      unusable.push({ name, protocol });
+      unusable.push({ name, protocol: protocolOf(value) });
     }
   }
 
-  return { source, unusable, present };
+  // Last resort: any env var at all holding a postgres:// URL. Providers keep
+  // inventing new names, and a working connection string is worth finding
+  // wherever it landed.
+  if (!source) {
+    for (const [name, value] of Object.entries(process.env)) {
+      const trimmed = value?.trim();
+      if (!trimmed || !isWireProtocolUrl(trimmed)) continue;
+      source = name;
+      if (!present.includes(name)) present.push(name);
+      break;
+    }
+  }
+
+  const databaseLikeVars = Object.entries(process.env)
+    .filter(([name, value]) => DATABASE_LIKE_NAME.test(name) && (value?.trim().length ?? 0) > 0)
+    .map(([name, value]) => ({ name, protocol: protocolOf(value!.trim()) }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return { source, unusable, present, databaseLikeVars };
 }
 
 function getConnectionString(): string {
-  const { source, unusable, present } = inspectConnectionEnv();
+  const { source, unusable, databaseLikeVars } = inspectConnectionEnv();
 
   if (source) {
     return process.env[source]!.trim();
@@ -76,9 +111,13 @@ function getConnectionString(): string {
     );
   }
 
+  const seen =
+    databaseLikeVars.length > 0
+      ? databaseLikeVars.map((v) => `${v.name} (${v.protocol})`).join(", ")
+      : "none";
   throw new Error(
     `No Postgres connection string found. Set one of: ${CONNECTION_ENV_VARS.join(", ")}. ` +
-      `Env vars currently present: ${present.length > 0 ? present.join(", ") : "none"}.`,
+      `Database-like env vars visible to this function: ${seen}.`,
   );
 }
 

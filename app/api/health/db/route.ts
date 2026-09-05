@@ -21,12 +21,14 @@ function redact(message: string): string {
  * env var names only, never their values.
  */
 export async function GET() {
-  const { source, unusable, present } = inspectConnectionEnv();
+  const { source, unusable, present, databaseLikeVars } = inspectConnectionEnv();
 
   const env = {
     usableConnectionStringFrom: source,
     envVarsPresent: present,
     envVarsPresentButWrongProtocol: unusable,
+    // Names and value protocols only, never values.
+    databaseLikeEnvVars: databaseLikeVars,
   };
 
   try {
