@@ -125,10 +125,23 @@ export function runWcagChecks($: cheerio.CheerioAPI, page: FetchedPage): Check[]
   // 7. Skip link. WCAG 2.4.1 can be satisfied by landmarks as well as a skip
   // link, so a page with a proper main landmark already offers a bypass and
   // shouldn't be failed outright for lacking the link.
+  // Skip links are written many ways: "Skip to content", "Jump to main
+  // content", an aria-label on an icon-only link, or a class name doing the
+  // signalling. Match on any of those rather than the visible text alone.
+  const SKIP_WORDING = /\b(skip|jump)\b/i;
   const firstElements = $("body").children().slice(0, 3);
   const hasSkipLink =
-    $('a[href^="#"]').filter((_, el) => /skip/i.test($(el).text())).length > 0 ||
-    firstElements.find('a[href^="#"]').length > 0;
+    $('a[href^="#"]')
+      .toArray()
+      .some((el) => {
+        const a = $(el);
+        return (
+          SKIP_WORDING.test(a.text()) ||
+          SKIP_WORDING.test(a.attr("aria-label") ?? "") ||
+          SKIP_WORDING.test(a.attr("title") ?? "") ||
+          SKIP_WORDING.test(a.attr("class") ?? "")
+        );
+      }) || firstElements.find('a[href^="#"]').length > 0;
   const hasMainLandmark =
     findViolation(violations, "landmark-one-main").length === 0 && $("main, [role=main]").length > 0;
   checks.push(
