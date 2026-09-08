@@ -12,6 +12,19 @@ function check(
   return { id, category: "aio", name, weight, status, message, howToFix };
 }
 
+/**
+ * Text a visitor actually sees. cheerio's .text() returns every text node
+ * including the contents of <script> and <style>, so reading it raw counts
+ * JSON-LD and inline JavaScript as page content. That inflates the
+ * content-to-code ratio and lets structured data match itself when we ask
+ * whether the page shows what the schema claims.
+ */
+function visibleText($: cheerio.CheerioAPI): string {
+  const body = $("body").clone();
+  body.find("script, style, noscript, template, svg").remove();
+  return (body.text() || "").replace(/\s+/g, " ").trim();
+}
+
 function collectJsonLd($: cheerio.CheerioAPI): Record<string, unknown>[] {
   const blocks: Record<string, unknown>[] = [];
   $('script[type="application/ld+json"]').each((_, el) => {
@@ -75,10 +88,11 @@ export async function runAioChecks(
 ): Promise<Check[]> {
   const checks: Check[] = [];
   const jsonLdBlocks = collectJsonLd($);
+  const pageText = visibleText($);
   const origin = new URL(page.finalUrl).origin;
 
   // 1. Content-to-code ratio > 15%
-  const textLength = ($("body").text() || "").replace(/\s+/g, " ").trim().length;
+  const textLength = pageText.length;
   const ratio = html.length > 0 ? (textLength / html.length) * 100 : 0;
   checks.push(
     ratio > 15
@@ -179,14 +193,44 @@ export async function runAioChecks(
   // 4. FAQ or Q&A schema/structure
   const hasFaqSchema = allTypes.some((t) => ["FAQPage", "QAPage", "Question"].includes(t));
   const questionHeadings = $("h2, h3").filter((_, el) => $(el).text().trim().endsWith("?")).length;
+
+  // Google requires the questions in FAQ schema to be visible on the page.
+  // Schema describing content a visitor can't see is a guidelines violation,
+  // not a pass. Compare the schema's own question text against the body rather
+  // than relying on headings, so an accordion built from divs still counts.
+  const bodyText = pageText.toLowerCase();
+  const schemaQuestions = jsonLdBlocks
+    .flatMap((b) => {
+      const entities = b.mainEntity ?? b.mainEntityOfPage;
+      const list = Array.isArray(entities) ? entities : entities ? [entities] : [];
+      return list as Record<string, unknown>[];
+    })
+    .map((q) => (typeof q?.name === "string" ? q.name.trim() : ""))
+    .filter((q) => q.length > 0);
+  const visibleSchemaQuestions = schemaQuestions.filter((q) =>
+    bodyText.includes(q.toLowerCase()),
+  );
+  // Only claim the content is missing when we actually parsed questions and
+  // found none of them on the page.
+  const schemaQuestionsMissingFromPage =
+    schemaQuestions.length > 0 && visibleSchemaQuestions.length === 0 && questionHeadings === 0;
   // This check is about whether existing Q&A content is marked up, not about
   // whether every page ought to have an FAQ. A page with no questions on it has
   // nothing to mark up, so it isn't scored. Whether the page *should* carry
   // question-and-answer content is the answer-shaped check below, which keeps
   // the two from penalising the same absence twice.
   checks.push(
-    hasFaqSchema
-      ? check("faq-schema", "FAQ / Q&A markup", 3, "pass", "FAQ or Q&A schema present.", "No action needed.")
+    hasFaqSchema && schemaQuestionsMissingFromPage
+      ? check(
+          "faq-schema",
+          "FAQ / Q&A markup",
+          3,
+          "fail",
+          "FAQ schema describes questions that don't appear anywhere on the page.",
+          "Search engines require the questions in FAQ schema to be visible to visitors. Show the same questions and answers on the page, or remove the schema.",
+        )
+      : hasFaqSchema
+      ? check("faq-schema", "FAQ / Q&A markup", 3, "pass", "Q&A content on the page is marked up with FAQ schema.", "No action needed.")
       : questionHeadings > 0
         ? check(
             "faq-schema",
@@ -264,7 +308,8 @@ export async function runAioChecks(
   ];
   const isDatedContent = allTypes.some((t) => DATED_TYPES.includes(t));
   const hasDateSchema = jsonLdBlocks.some((b) => "datePublished" in b || "dateModified" in b);
-  const hasVisibleDate = $("time").length > 0 || /\b(published|updated|last modified)\b/i.test($("body").text());
+  const hasVisibleDate =
+    $("time").length > 0 || /\b(published|updated|last modified)\b/i.test(pageText);
   checks.push(
     !isDatedContent
       ? check(
@@ -358,7 +403,7 @@ export async function runAioChecks(
 
   // 9. First 100 words contain the H1 topic
   const h1Text = $("h1").first().text().trim();
-  const bodyWords = ($("body").text() || "").trim().split(/\s+/);
+  const bodyWords = pageText.split(/\s+/);
   const first100 = bodyWords.slice(0, 100).join(" ");
   // Keyword overlap is a rough proxy, so the bar is set where a genuinely
   // off-topic intro fails but ordinary paraphrasing does not.
@@ -448,8 +493,8 @@ export async function runAioChecks(
             "Answer-shaped content",
             2,
             "fail",
-            "No question-and-answer style content found.",
-            "Structure key content as a question heading followed by a direct answer paragraph.",
+            "No question-and-answer style content found. This is an opportunity rather than a defect: the page works, it just gives answer engines less to quote.",
+            "Add a short section that asks a question your customers actually ask, then answers it directly underneath.",
           ),
   );
 
