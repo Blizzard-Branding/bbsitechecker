@@ -33,7 +33,7 @@ export default function Home() {
       <section className="bb-container grid gap-8 sm:grid-cols-3 py-16 border-t border-navy/10">
         {EXPLAINERS.map((item) => (
           <div key={item.title} className="text-center sm:text-left">
-            <p className="bb-eyebrow text-sm text-green mb-2">{item.title}</p>
+            <p className="bb-eyebrow text-sm text-green-text mb-2">{item.title}</p>
             <p className="text-blue">{item.body}</p>
           </div>
         ))}

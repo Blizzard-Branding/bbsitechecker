@@ -5,9 +5,19 @@ const COLORS = {
   navy: "#2b333e",
   salmon: "#eca392",
   green: "#788e8b",
+  greenText: "#556b68",
   blue: "#455763",
   cream: "#f7f3ee",
   warmWhite: "#fdf9f5",
+  pass: "#33514a",
+  partial: "#8a4b23",
+  fail: "#98392b",
+};
+
+const STATUS_COLOR: Record<Check["status"], string> = {
+  pass: COLORS.pass,
+  partial: COLORS.partial,
+  fail: COLORS.fail,
 };
 
 const styles = StyleSheet.create({
@@ -85,7 +95,7 @@ const styles = StyleSheet.create({
   },
   checkFix: {
     fontSize: 9,
-    color: COLORS.green,
+    color: COLORS.greenText,
     marginTop: 2,
   },
   footer: {
@@ -115,7 +125,9 @@ function CategorySection({ category }: { category: CategoryResult }) {
       </Text>
       {category.checks.map((c) => (
         <View key={c.id} style={styles.checkRow} wrap={false}>
-          <Text style={styles.checkBadge}>{STATUS_LABEL[c.status]}</Text>
+          <Text style={[styles.checkBadge, { color: STATUS_COLOR[c.status] }]}>
+            {STATUS_LABEL[c.status]}
+          </Text>
           <View style={styles.checkBody}>
             <Text style={styles.checkName}>{c.name}</Text>
             <Text style={styles.checkMessage}>{c.message}</Text>

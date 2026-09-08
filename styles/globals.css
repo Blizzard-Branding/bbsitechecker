@@ -8,6 +8,25 @@
   --color-blue: #455763;
   --color-cream: #f7f3ee;
   --color-warm-white: #fdf9f5;
+
+  /* Brand green is a light sage: fine for fills, too light for body text
+     (3.5:1 on white). This is the same hue darkened to clear 4.5:1. */
+  --color-green-text: #556b68;
+
+  /* Status colours. Pass is derived from the brand sage, fail from the same
+     warm family as the salmon, so they read as status without leaving the
+     palette. Every pair below clears WCAG AA against its own background. */
+  --color-pass-text: #33514a;
+  --color-pass-bg: #e3ece7;
+  --color-pass-border: #b9cfc2;
+
+  --color-partial-text: #8a4b23;
+  --color-partial-bg: #fbe9dd;
+  --color-partial-border: #eec8a8;
+
+  --color-fail-text: #98392b;
+  --color-fail-bg: #f9e6e2;
+  --color-fail-border: #e8b6ab;
 }
 
 @theme inline {
@@ -17,6 +36,7 @@
   --color-blue: var(--color-blue);
   --color-cream: var(--color-cream);
   --color-warm-white: var(--color-warm-white);
+  --color-green-text: var(--color-green-text);
   --font-display: var(--font-playfair);
   --font-eyebrow: var(--font-bebas);
   --font-body: var(--font-dm-sans);
@@ -48,18 +68,21 @@ body {
 }
 
 .bb-badge-pass {
-  background-color: color-mix(in srgb, var(--color-green) 18%, transparent);
-  color: var(--color-navy);
+  background-color: var(--color-pass-bg);
+  border: 1px solid var(--color-pass-border);
+  color: var(--color-pass-text);
 }
 
 .bb-badge-partial {
-  background-color: color-mix(in srgb, var(--color-salmon) 30%, transparent);
-  color: var(--color-navy);
+  background-color: var(--color-partial-bg);
+  border: 1px solid var(--color-partial-border);
+  color: var(--color-partial-text);
 }
 
 .bb-badge-fail {
-  background-color: color-mix(in srgb, var(--color-navy) 12%, transparent);
-  color: var(--color-navy);
+  background-color: var(--color-fail-bg);
+  border: 1px solid var(--color-fail-border);
+  color: var(--color-fail-text);
 }
 
 .bb-card {

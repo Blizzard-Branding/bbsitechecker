@@ -38,7 +38,7 @@ export default async function ResultsPage({
       </section>
 
       <section className="bb-container flex flex-col items-center text-center gap-6 py-16 border-t border-navy/10">
-        <p className="bb-eyebrow text-sm text-green">See all 35 checks and the fixes</p>
+        <p className="bb-eyebrow text-sm text-green-text">See all 35 checks and the fixes</p>
         {unlocked ? (
           <Link
             href={`/report/${result.id}`}

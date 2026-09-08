@@ -23,7 +23,7 @@ export default function CheckItem({ check }: { check: Check }) {
       </div>
       <p className="text-sm text-blue">{check.message}</p>
       {check.status !== "pass" && (
-        <p className="text-sm text-green">Fix: {check.howToFix}</p>
+        <p className="text-sm text-green-text">Fix: {check.howToFix}</p>
       )}
     </div>
   );
