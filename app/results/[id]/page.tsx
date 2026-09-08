@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getAudit } from "@/lib/db";
 import ScoreCard from "@/components/ScoreCard";
 import LeadForm from "@/components/LeadForm";
+import ScopeNote from "@/components/ScopeNote";
 
 export default async function ResultsPage({
   params,
@@ -22,6 +23,7 @@ export default async function ResultsPage({
         <p className="font-display text-2xl text-navy break-all">{result.url}</p>
         <p className="bb-grade text-7xl text-navy mt-2">{result.combinedGrade}</p>
         <p className="text-blue">Combined score: {result.combinedScore}/100</p>
+        <ScopeNote />
         {result.blockedAutomation && (
           <p className="text-sm text-blue max-w-md">
             This site blocks automated tools. Some checks may be incomplete.

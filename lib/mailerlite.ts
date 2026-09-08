@@ -10,6 +10,62 @@ export interface SubscribeInput {
   businessName: string;
 }
 
+export type AuthCheckResult =
+  | { ok: true; groupIdSet: boolean }
+  | { ok: false; reason: string; httpStatus: number | null; groupIdSet: boolean };
+
+/**
+ * Verifies the API key against MailerLite with a read-only request. Reports
+ * only whether auth works, never any subscriber data, since the endpoint that
+ * surfaces this is publicly reachable.
+ */
+export async function checkMailerLiteAuth(): Promise<AuthCheckResult> {
+  const groupIdSet = Boolean(process.env.MAILERLITE_GROUP_ID?.trim());
+  const apiKey = process.env.MAILERLITE_API_KEY;
+
+  if (!apiKey) {
+    return {
+      ok: false,
+      reason: "MAILERLITE_API_KEY is not set on this deployment",
+      httpStatus: null,
+      groupIdSet,
+    };
+  }
+
+  try {
+    const response = await fetch(`${apiUrl()}?limit=1`, {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        Accept: "application/json",
+      },
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => "");
+      return {
+        ok: false,
+        reason:
+          response.status === 401
+            ? "MailerLite rejected the key. Check it is a token from the current API, not the legacy v2 API."
+            : `MailerLite returned ${response.status}${detail ? `: ${detail.slice(0, 200)}` : ""}`,
+        httpStatus: response.status,
+        groupIdSet,
+      };
+    }
+
+    return { ok: true, groupIdSet };
+  } catch (err) {
+    return {
+      ok: false,
+      reason: err instanceof Error ? err.message : String(err),
+      httpStatus: null,
+      groupIdSet,
+    };
+  }
+}
+
 export type SubscribeResult =
   | { status: "subscribed" }
   | { status: "skipped"; reason: string }
