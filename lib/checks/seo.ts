@@ -66,8 +66,19 @@ export async function runSeoChecks(
     );
   }
 
-  // 2. Meta description, 120-160 chars
-  const metaDescription = $('meta[name="description"]').attr("content")?.trim() ?? "";
+  // 2. Meta description, 120-160 chars. Matched case-insensitively and with a
+  // trim, since hand-written and plugin-generated markup both turn up as
+  // name="Description" and name=" description ".
+  const metaDescription =
+    $("meta")
+      .toArray()
+      .map((el) => $(el))
+      .find((el) => (el.attr("name") ?? "").trim().toLowerCase() === "description")
+      ?.attr("content")
+      ?.trim() ?? "";
+  // A page with og:description but no meta description is half-configured,
+  // which is worth saying rather than reporting a flat absence.
+  const ogDescription = $('meta[property="og:description" i]').attr("content")?.trim() ?? "";
   if (!metaDescription) {
     checks.push(
       check(
@@ -75,8 +86,10 @@ export async function runSeoChecks(
         "Meta description",
         4,
         "fail",
-        "No meta description found.",
-        "Add a meta description between 120 and 160 characters summarizing the page.",
+        ogDescription
+          ? "No meta description in the page HTML, though an og:description is set. Search engines read the meta description, so this page has none for them."
+          : "No meta description found in the page HTML.",
+        "Add a meta description between 120 and 160 characters summarizing the page. If you use an SEO plugin, check the setting for this specific page: many put the home page's description somewhere separate from the other pages.",
       ),
     );
   } else if (metaDescription.length >= 120 && metaDescription.length <= 160) {
