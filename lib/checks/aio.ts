@@ -41,12 +41,15 @@ function typeNames(block: Record<string, unknown>): string[] {
   return [];
 }
 
-async function fetchOk(url: string): Promise<boolean> {
+/** "blocked" means we were refused, which is different from the file being absent. */
+async function fetchStatus(url: string): Promise<"found" | "missing" | "blocked"> {
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(10_000), method: "GET" });
-    return res.ok;
+    if (res.ok) return "found";
+    if (res.status === 403 || res.status === 429 || res.status === 401) return "blocked";
+    return "missing";
   } catch {
-    return false;
+    return "blocked";
   }
 }
 
@@ -399,10 +402,19 @@ export async function runAioChecks(
   }
 
   // 10. llms.txt file
-  const hasLlmsTxt = await fetchOk(`${origin}/llms.txt`);
+  const llmsTxt = await fetchStatus(`${origin}/llms.txt`);
   checks.push(
-    hasLlmsTxt
+    llmsTxt === "found"
       ? check("llms-txt", "llms.txt file", 2, "pass", "llms.txt found at the site root.", "No action needed.")
+      : llmsTxt === "blocked"
+      ? check(
+          "llms-txt",
+          "llms.txt file",
+          2,
+          "na",
+          "We were refused when checking for llms.txt, so we can't tell whether it exists.",
+          "Allow the checker to read the domain root, then run the audit again.",
+        )
       : check(
           "llms-txt",
           "llms.txt file",

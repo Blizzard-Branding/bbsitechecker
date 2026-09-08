@@ -12,13 +12,23 @@ function check(
   return { id, category: "seo", name, weight, status, message, howToFix };
 }
 
-async function fetchText(url: string): Promise<string | null> {
+type FetchOutcome =
+  | { kind: "found"; text: string }
+  | { kind: "missing" }
+  /** Blocked or rate limited: we can't tell whether the file exists. */
+  | { kind: "blocked"; status: number }
+  | { kind: "error" };
+
+async function fetchText(url: string): Promise<FetchOutcome> {
   try {
     const res = await fetch(url, { signal: AbortSignal.timeout(10_000) });
-    if (!res.ok) return null;
-    return await res.text();
+    if (res.ok) return { kind: "found", text: await res.text() };
+    if (res.status === 403 || res.status === 429 || res.status === 401) {
+      return { kind: "blocked", status: res.status };
+    }
+    return { kind: "missing" };
   } catch {
-    return null;
+    return { kind: "error" };
   }
 }
 
@@ -186,54 +196,84 @@ export async function runSeoChecks(
         ),
   );
 
-  // 6. HTTPS + valid cert
+  // 6. HTTPS + valid cert. This is about transport security only. An HTTP
+  // error status says nothing about TLS: a 403 is still served over HTTPS, and
+  // failing this check for it told people their certificate was broken when it
+  // was fine. Reaching here on an https:// URL means the certificate validated,
+  // since the browser refuses the navigation otherwise.
   checks.push(
-    page.isHttps && page.status !== null && page.status < 400
-      ? check("https", "HTTPS", 5, "pass", "Page loads over HTTPS.", "No action needed.")
+    page.isHttps
+      ? check(
+          "https",
+          "HTTPS",
+          5,
+          "pass",
+          "Page loads over HTTPS with a certificate the browser accepts.",
+          "No action needed.",
+        )
       : check(
           "https",
           "HTTPS",
           5,
           "fail",
-          page.isHttps ? `Page returned status ${page.status}.` : "Page does not load over HTTPS.",
-          "Serve the site over HTTPS with a valid certificate.",
+          "Page does not load over HTTPS.",
+          "Serve the site over HTTPS with a valid certificate, and redirect HTTP traffic to it.",
         ),
   );
 
-  // 7 & 8. robots.txt exists + sitemap referenced
+  // 7 & 8. robots.txt exists + sitemap referenced. A 403 here means the file
+  // was withheld, not that it's absent, so don't report it as missing.
   const robotsTxt = await fetchText(`${origin}/robots.txt`);
+  const robotsBlocked = robotsTxt.kind === "blocked" || robotsTxt.kind === "error";
+  const blockedNote =
+    robotsTxt.kind === "blocked"
+      ? `The site returned ${robotsTxt.status} for robots.txt, so we can't tell whether it exists.`
+      : "We couldn't reach robots.txt, so we can't tell whether it exists.";
+
   checks.push(
-    robotsTxt !== null
+    robotsTxt.kind === "found"
       ? check("robots-txt", "robots.txt exists", 3, "pass", "robots.txt found.", "No action needed.")
-      : check(
-          "robots-txt",
-          "robots.txt exists",
-          3,
-          "fail",
-          "No robots.txt found at the site root.",
-          "Add a robots.txt file at the domain root.",
-        ),
+      : robotsBlocked
+        ? check("robots-txt", "robots.txt exists", 3, "na", blockedNote, "Allow the checker to read robots.txt, then run the audit again.")
+        : check(
+            "robots-txt",
+            "robots.txt exists",
+            3,
+            "fail",
+            "No robots.txt found at the site root.",
+            "Add a robots.txt file at the domain root.",
+          ),
   );
 
-  const hasSitemapDirective = robotsTxt ? /^sitemap:/im.test(robotsTxt) : false;
   checks.push(
-    hasSitemapDirective
-      ? check(
-          "sitemap-in-robots",
-          "Sitemap in robots.txt",
-          3,
-          "pass",
-          "robots.txt references a sitemap.",
-          "No action needed.",
-        )
-      : check(
-          "sitemap-in-robots",
-          "Sitemap in robots.txt",
-          3,
-          "fail",
-          "robots.txt does not reference a sitemap.",
-          "Add a Sitemap: line to robots.txt pointing to your sitemap.xml.",
-        ),
+    robotsTxt.kind === "found"
+      ? /^sitemap:/im.test(robotsTxt.text)
+        ? check(
+            "sitemap-in-robots",
+            "Sitemap in robots.txt",
+            3,
+            "pass",
+            "robots.txt references a sitemap.",
+            "No action needed.",
+          )
+        : check(
+            "sitemap-in-robots",
+            "Sitemap in robots.txt",
+            3,
+            "fail",
+            "robots.txt does not reference a sitemap.",
+            "Add a Sitemap: line to robots.txt pointing to your sitemap.xml.",
+          )
+      : robotsBlocked
+        ? check("sitemap-in-robots", "Sitemap in robots.txt", 3, "na", blockedNote, "Allow the checker to read robots.txt, then run the audit again.")
+        : check(
+            "sitemap-in-robots",
+            "Sitemap in robots.txt",
+            3,
+            "fail",
+            "There is no robots.txt to reference a sitemap from.",
+            "Add a robots.txt file with a Sitemap: line pointing to your sitemap.xml.",
+          ),
   );
 
   // 9. OG tags, partial credit
