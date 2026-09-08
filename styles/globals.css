@@ -85,6 +85,13 @@ body {
   color: var(--color-fail-text);
 }
 
+/* Not applicable to this page. Deliberately neutral: it is not a result. */
+.bb-badge-na {
+  background-color: var(--color-cream);
+  border: 1px solid color-mix(in srgb, var(--color-blue) 20%, transparent);
+  color: var(--color-blue);
+}
+
 .bb-card {
   background: #ffffff;
   border: 1px solid color-mix(in srgb, var(--color-blue) 12%, transparent);

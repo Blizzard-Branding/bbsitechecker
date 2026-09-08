@@ -4,12 +4,14 @@ const STATUS_LABEL: Record<Check["status"], string> = {
   pass: "Pass",
   partial: "Partial",
   fail: "Fail",
+  na: "N/A",
 };
 
 const STATUS_CLASS: Record<Check["status"], string> = {
   pass: "bb-badge-pass",
   partial: "bb-badge-partial",
   fail: "bb-badge-fail",
+  na: "bb-badge-na",
 };
 
 export default function CheckItem({ check }: { check: Check }) {
@@ -22,8 +24,12 @@ export default function CheckItem({ check }: { check: Check }) {
         </span>
       </div>
       <p className="text-sm text-blue">{check.message}</p>
-      {check.status !== "pass" && (
-        <p className="text-sm text-green-text">Fix: {check.howToFix}</p>
+      {check.status === "na" ? (
+        <p className="text-sm text-blue/70">{check.howToFix}</p>
+      ) : (
+        check.status !== "pass" && (
+          <p className="text-sm text-green-text">Fix: {check.howToFix}</p>
+        )
       )}
     </div>
   );

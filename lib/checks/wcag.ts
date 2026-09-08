@@ -122,22 +122,35 @@ export function runWcagChecks($: cheerio.CheerioAPI, page: FetchedPage): Check[]
     ),
   );
 
-  // 7. Skip link present
+  // 7. Skip link. WCAG 2.4.1 can be satisfied by landmarks as well as a skip
+  // link, so a page with a proper main landmark already offers a bypass and
+  // shouldn't be failed outright for lacking the link.
   const firstElements = $("body").children().slice(0, 3);
   const hasSkipLink =
     $('a[href^="#"]').filter((_, el) => /skip/i.test($(el).text())).length > 0 ||
     firstElements.find('a[href^="#"]').length > 0;
+  const hasMainLandmark =
+    findViolation(violations, "landmark-one-main").length === 0 && $("main, [role=main]").length > 0;
   checks.push(
     hasSkipLink
       ? check("skip-link", "Skip link present", 3, "pass", "A skip link is present near the top of the page.", "No action needed.")
-      : check(
-          "skip-link",
-          "Skip link present",
-          3,
-          "fail",
-          "No skip link found near the start of the page.",
-          "Add a 'Skip to content' link as the first focusable element on the page.",
-        ),
+      : hasMainLandmark
+        ? check(
+            "skip-link",
+            "Skip link present",
+            3,
+            "partial",
+            "No skip link, though a main landmark lets screen reader users bypass the header.",
+            "Add a 'Skip to content' link as the first focusable element, so keyboard users get the same shortcut.",
+          )
+        : check(
+            "skip-link",
+            "Skip link present",
+            3,
+            "fail",
+            "No skip link and no main landmark, so there's no way to bypass the header.",
+            "Add a 'Skip to content' link as the first focusable element on the page.",
+          ),
   );
 
   // 8. Landmarks present

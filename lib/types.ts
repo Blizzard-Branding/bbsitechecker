@@ -1,6 +1,12 @@
 export type CheckCategory = "seo" | "aio" | "wcag";
 
-export type CheckStatus = "pass" | "partial" | "fail";
+/**
+ * "na" means the check doesn't apply to this kind of page (a services page has
+ * no article to date-stamp, for instance). Those checks are still reported, so
+ * the reader can see they were considered, but they're left out of the score
+ * rather than counted as failures.
+ */
+export type CheckStatus = "pass" | "partial" | "fail" | "na";
 
 export interface Check {
   id: string;

@@ -18,6 +18,7 @@ const STATUS_COLOR: Record<Check["status"], string> = {
   pass: COLORS.pass,
   partial: COLORS.partial,
   fail: COLORS.fail,
+  na: COLORS.blue,
 };
 
 const styles = StyleSheet.create({
@@ -115,6 +116,7 @@ const STATUS_LABEL: Record<Check["status"], string> = {
   pass: "Pass",
   partial: "Partial",
   fail: "Fail",
+  na: "N/A",
 };
 
 function CategorySection({ category }: { category: CategoryResult }) {
@@ -131,7 +133,9 @@ function CategorySection({ category }: { category: CategoryResult }) {
           <View style={styles.checkBody}>
             <Text style={styles.checkName}>{c.name}</Text>
             <Text style={styles.checkMessage}>{c.message}</Text>
-            {c.status !== "pass" && <Text style={styles.checkFix}>Fix: {c.howToFix}</Text>}
+            {c.status !== "pass" && c.status !== "na" && (
+              <Text style={styles.checkFix}>Fix: {c.howToFix}</Text>
+            )}
           </View>
         </View>
       ))}
